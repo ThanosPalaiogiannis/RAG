@@ -1,0 +1,19 @@
+# Virtual environment (created by uv)
+.venv/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Secrets / environment variables (API keys go here later)
+.env
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Caches from tools we may add later (pytest, mypy, ruff)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
