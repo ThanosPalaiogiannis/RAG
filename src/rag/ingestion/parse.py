@@ -49,6 +49,8 @@ def extract_blocks_from_html(main) -> list[Block]:
 def parse_html(html: str, url: str) -> ParsedDocument:
     soup = bs4.BeautifulSoup(html, "lxml")
     main = soup.find("main")
+    if main is None:
+        raise ValueError(f"No <main> tag found in page at {url}")
     for aside in main.find_all("aside"):
         aside.decompose()
     blocks = extract_blocks_from_html(main)
