@@ -3,7 +3,7 @@ from urllib.parse import urljoin, urldefrag, urlparse
 from collections import deque
 from rag.ingestion.fetch import fetch_html
 from rag.ingestion.parse import parse_html, ParsedDocument
-
+import time
 def crawl(start_url: str, max_pages: int = 10) -> list[ParsedDocument]:
     visited: set[str] = set()
     queue = deque([start_url])
@@ -14,6 +14,7 @@ def crawl(start_url: str, max_pages: int = 10) -> list[ParsedDocument]:
             continue
         visited.add(current_url)
         html = fetch_html(current_url)
+        time.sleep(0.5)
         parsed_doc = parse_html(html, current_url)
         documents.append(parsed_doc)
         discovered_links = discover_links(html, current_url)
