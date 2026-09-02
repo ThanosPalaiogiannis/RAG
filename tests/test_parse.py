@@ -32,3 +32,4 @@ def test_go_code_has_no_double_blank_lines(parsed_doc):
 def test_parse_html_raises_without_main():
     with pytest.raises(ValueError):
         parse_html("<html><body><p>no main here</p></body></html>", "https://example.com")
+
