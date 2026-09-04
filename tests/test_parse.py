@@ -33,3 +33,9 @@ def test_parse_html_raises_without_main():
     with pytest.raises(ValueError):
         parse_html("<html><body><p>no main here</p></body></html>", "https://example.com")
 
+def test_empty_paragraph_not_included():
+    html = "<html><body><main><p></p><p>Hello</p></main></body></html>"
+    doc = parse_html(html, "https://example.com")
+    paragraphs = [b for b in doc.blocks if isinstance(b, ParagraphBlock)]
+    assert len(paragraphs) == 1
+    assert paragraphs[0].text == "Hello"

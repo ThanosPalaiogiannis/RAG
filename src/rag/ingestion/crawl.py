@@ -18,7 +18,7 @@ def crawl(start_url: str, max_pages: int = 10) -> list[ParsedDocument]:
         parsed_doc = parse_html(html, current_url)
         documents.append(parsed_doc)
         discovered_links = discover_links(html, current_url)
-        for link in discovered_links:
+        for link in sorted(discovered_links):
             if link not in visited and link not in queue:
                 queue.append(link)
     return documents
