@@ -1,5 +1,9 @@
 from dataclasses import dataclass
 from rag.ingestion.parse import HeadingBlock, ParagraphBlock, CodeBlock, ParsedDocument 
+import tiktoken
+
+encoding = tiktoken.get_encoding("cl100k_base")
+PROSE_TOKEN_BUDGET = 300
 
 @dataclass
 class Chunk:
@@ -27,6 +31,18 @@ def chunk_document(doc:ParsedDocument) -> list[Chunk]:
                 prose_buffer.clear()
             current_section = block.text
         elif isinstance(block, ParagraphBlock):
+            candidate_text = " ".join(prose_buffer + [block.text])
+            candidate_tokens = len(encoding.encode(candidate_text))
+            if candidate_tokens > PROSE_TOKEN_BUDGET and prose_buffer:
+                text = " ".join(prose_buffer)
+                chunk = Chunk(
+                    text=text,
+                    source_url=doc.url,
+                    section=current_section,
+                    language=None,
+                )
+                chunks.append(chunk)
+                prose_buffer.clear()
             prose_buffer.append(block.text)
         elif isinstance(block, CodeBlock):
             chunk = Chunk(

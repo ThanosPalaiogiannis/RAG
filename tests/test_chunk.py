@@ -1,7 +1,12 @@
 import pytest
-from rag.ingestion.parse import parse_html, CodeBlock
-from rag.chunking.chunk import chunk_document
-
+from rag.ingestion.parse import (
+    parse_html,
+    CodeBlock,
+    ParsedDocument,
+    HeadingBlock,
+    ParagraphBlock,
+)
+from rag.chunking.chunk import chunk_document, encoding
 @pytest.fixture
 def doc_and_chunks():
     with open("tests/fixtures/openai_docs.html", encoding="utf-8") as f:
@@ -26,3 +31,32 @@ def test_no_empty_chunks(doc_and_chunks):
     doc, chunks = doc_and_chunks
     for chunk in chunks:
         assert chunk.text.strip() != ""
+
+def test_prose_splits_when_token_budget_exceeded():
+    doc = ParsedDocument(
+    url="https://example.com/test",
+    blocks=[
+            HeadingBlock(text="Test section", level=2),
+            ParagraphBlock(text="hello world " * 100),
+            ParagraphBlock(text="hello world " * 100)
+        ]
+    )
+    chunks = chunk_document(doc)
+    assert len(chunks) == 2
+    assert chunks[0].text == "hello world " * 100
+    assert chunks[1].text == "hello world " * 100
+
+def test_single_oversized_paragraph_stays_intact():
+    oversized_text = "hello world " * 200
+    doc = ParsedDocument(
+        url="https://example.com/test",
+        blocks=[
+            HeadingBlock(text="Test section", level=2),
+            ParagraphBlock(text=oversized_text),
+        ]
+    )
+
+    chunks = chunk_document(doc)
+    assert len(encoding.encode(oversized_text)) > 300
+    assert len(chunks) == 1
+    assert chunks[0].text == oversized_text

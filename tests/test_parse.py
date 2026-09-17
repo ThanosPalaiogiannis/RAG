@@ -1,6 +1,7 @@
 import pytest
 from rag.ingestion.parse import parse_html, HeadingBlock, ParagraphBlock, CodeBlock
 
+
 @pytest.fixture
 def parsed_doc():
     with open("tests/fixtures/openai_docs.html", encoding="utf-8") as f:
@@ -39,3 +40,17 @@ def test_empty_paragraph_not_included():
     paragraphs = [b for b in doc.blocks if isinstance(b, ParagraphBlock)]
     assert len(paragraphs) == 1
     assert paragraphs[0].text == "Hello"
+
+def test_inline_elements_preserve_spaces():
+    html = "<html><body><main><p>the <a href='#'>Platform console</a> with access</p></main></body></html>"
+    doc = parse_html(html, "https://example.com")
+    paragraphs = [b for b in doc.blocks if isinstance(b, ParagraphBlock)]
+    assert len(paragraphs) == 1
+    assert paragraphs[0].text == "the Platform console with access"
+
+def test_no_space_before_punctuation():
+    html = "<html><body><main><p>Open the <a href='#'>Platform console</a>, then continue.</p></main></body></html>"
+    doc = parse_html(html, "https://example.com")
+    paragraphs = [b for b in doc.blocks if isinstance(b, ParagraphBlock)]
+    assert len(paragraphs) == 1
+    assert paragraphs[0].text == "Open the Platform console, then continue."

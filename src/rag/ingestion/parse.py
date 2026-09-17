@@ -1,7 +1,7 @@
 import bs4
 from rag.ingestion.fetch import fetch_html 
 from dataclasses import dataclass
-
+import re 
 
 @dataclass
 class ParagraphBlock:
@@ -32,7 +32,7 @@ def extract_blocks_from_html(main) -> list[Block]:
             level = int(tag.name[1])
             blocks.append(HeadingBlock(text=tag.get_text(strip=True), level=level))
         elif tag.name == "p":
-            text = tag.get_text(strip=True)
+            text = re.sub(r"\s+([,.;:?!])", r"\1", tag.get_text(" ",strip=True))
             if text:
                 blocks.append(ParagraphBlock(text=text))
         elif tag.name == "pre":
