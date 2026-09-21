@@ -1,0 +1,23 @@
+from openai import OpenAI
+
+
+def generate_answer(query: str, context: str) -> str:
+    instructions = (
+    "Answer the user's question using only the provided context. "
+    "If the context does not contain enough information, say so. "
+    "Cite the relevant sources using [Source N]."
+    "Use only the most relevant sources needed to answer the question."
+    "Do not include multiple programming-language examples unless the user asks for them."
+    )   
+    input_text = (
+        f"Question:\n{query}\n\n"
+        f"Context:\n{context}"
+    )
+    client = OpenAI()
+    response = client.responses.create(
+        model="gpt-5.6-luna",
+        reasoning={"effort": "low"},
+        instructions=instructions,
+        input=input_text,
+    )
+    return response.output_text
