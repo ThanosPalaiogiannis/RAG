@@ -17,6 +17,18 @@ def retrieve(query: str, limit: int = 5) -> list[ScoredPoint]:
     return results
 
 if __name__ == "__main__":
-    results = retrieve("How do I stream responses from the OpenAI API?")
-    context = build_context(results)
-    print(context)
+    # results = retrieve("How do I stream responses from the OpenAI API?")
+    # context = build_context(results)
+    # print(context)
+    results = retrieve(
+        "How should I set my OpenAI API key on my computer?"
+    )
+
+    for rank, result in enumerate(results, start=1):
+        print(
+            rank,
+            result.score,
+            result.payload.get("section"),
+            result.payload.get("language"),
+        )
+        
