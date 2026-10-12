@@ -24,7 +24,7 @@ def test_evaluate_case_returns_correct_rank(monkeypatch):
         "expected_section": "Expected section",
     }
 
-    rank = retrieval_eval.evaluate_case(case, k=3)
+    rank = retrieval_eval.evaluate_case(case,retriever=fake_retrieve, k=3)
 
     assert rank == 2
 
@@ -48,7 +48,7 @@ def test_evaluate_case_returns_none_when_section_not_found(monkeypatch):
         "expected_section": "Missing section",
     }
 
-    rank = retrieval_eval.evaluate_case(case, k=3)
+    rank = retrieval_eval.evaluate_case(case,retriever=fake_retrieve, k=3)
 
     assert rank is None
 
@@ -56,7 +56,7 @@ def test_evaluate_case_returns_none_when_section_not_found(monkeypatch):
 def test_evaluate_retrieval_calculates_metrics(monkeypatch):
     ranks = iter([1, 2, None])
 
-    def fake_evaluate_case(case: dict, k: int = 5):
+    def fake_evaluate_case(case: dict,retriever , k: int = 5):
         return next(ranks)
 
     monkeypatch.setattr(
@@ -71,7 +71,10 @@ def test_evaluate_retrieval_calculates_metrics(monkeypatch):
         {"query": "query 3", "expected_section": "section 3"},
     ]
 
-    recall_at_k, mrr = retrieval_eval.evaluate_retrieval(cases, k=5)
-
+    _, recall_at_k, mrr = retrieval_eval.evaluate_retrieval(
+    cases,
+    retriever=retrieval_eval.retrieve,
+    k=5,
+    )
     assert recall_at_k == pytest.approx(2 / 3)
     assert mrr == pytest.approx(0.5)

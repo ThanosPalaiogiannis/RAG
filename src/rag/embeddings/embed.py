@@ -11,7 +11,6 @@ class EmbeddedChunk:
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     client = OpenAI()
-
     response = client.embeddings.create(
         model=embedding_model,
         input=texts,
