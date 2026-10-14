@@ -2,21 +2,27 @@ from openai import OpenAI
 from dataclasses import dataclass
 from rag.chunking.chunk import Chunk
 
-embedding_model = "text-embedding-3-small"
+EMBEDDING_MODEL = "text-embedding-3-small"
 
 @dataclass
 class EmbeddedChunk:
     chunk: Chunk
     embedding: list[float]
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: list[str], batch_size: int = 500) -> list[list[float]]:
     client = OpenAI()
-    response = client.embeddings.create(
-        model=embedding_model,
-        input=texts,
-    )
+    all_embeddings = []
+    for start in range(0, len(texts), batch_size):
+        batch = texts[start:start + batch_size]
 
-    return [item.embedding for item in response.data]
+        response = client.embeddings.create(
+            model=EMBEDDING_MODEL,
+            input=batch,
+        )
+
+        all_embeddings.extend(item.embedding for item in response.data)
+
+    return all_embeddings
 
 def build_embedding_text(chunk: Chunk) -> str:
     segments = []

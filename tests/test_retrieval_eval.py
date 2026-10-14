@@ -21,7 +21,11 @@ def test_evaluate_case_returns_correct_rank(monkeypatch):
 
     case = {
         "query": "test question",
-        "expected_section": "Expected section",
+        "expected_targets": [
+            {
+                "section": "Expected section",
+            }
+        ],
     }
 
     rank = retrieval_eval.evaluate_case(case,retriever=fake_retrieve, k=3)
@@ -45,7 +49,11 @@ def test_evaluate_case_returns_none_when_section_not_found(monkeypatch):
 
     case = {
         "query": "test question",
-        "expected_section": "Missing section",
+        "expected_targets": [
+            {
+                "section": "Missing section",
+            }
+        ],
     }
 
     rank = retrieval_eval.evaluate_case(case,retriever=fake_retrieve, k=3)

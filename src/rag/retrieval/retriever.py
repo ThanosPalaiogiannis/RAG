@@ -59,3 +59,19 @@ def reranked_retrieve( query: str, limit: int = 5,)-> list[ScoredPoint]:
     candidates = retrieve(query, limit=15)
     return rerank_results(query,candidates,top_k=limit)
 
+if __name__ == "__main__":
+    query = "What does max_output_tokens control in the Responses API?"
+
+    results = retrieve(query, limit=20)
+
+    for rank, result in enumerate(results, start=1):
+        payload = result.payload or {}
+
+        print(f"\n--- Rank {rank} ---")
+        print(f"Score: {result.score}")
+        print(f"URL: {payload.get('source_url')}")
+        print(f"Section: {payload.get('section')}")
+        print(f"Language: {payload.get('language')}")
+
+        text = payload.get("text", "").replace("\n", " ")
+        print(f"Text: {text[:300]}")

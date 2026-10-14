@@ -1,4 +1,4 @@
-from rag.retrieval.retriever import retrieve
+from rag.retrieval.retriever import hybrid_retrieve
 from rag.context.builder import build_context
 from rag.generation.generator import generate_answer
 from rag.context.source import results_to_sources
@@ -7,7 +7,7 @@ from rag.context.language import detect_requested_language
 from rag.context.selector import select_context_results
 
 def answer_query(query: str) -> RAGResponse :
-    results = retrieve(query)
+    results = hybrid_retrieve(query)
     explicit_language = detect_requested_language(query)
     selected_results = select_context_results(results,explicit_language)
     context = build_context(selected_results)

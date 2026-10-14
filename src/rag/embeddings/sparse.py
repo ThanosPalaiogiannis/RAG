@@ -23,3 +23,19 @@ def embed_sparse_query(query: str) -> models.SparseVector:
         indices=embedding.indices.tolist(),
         values=embedding.values.tolist(),
     )
+
+def embed_sparse_texts(texts: list[str]) -> list[models.SparseVector]:
+    embeddings = sparse_model.embed(texts)
+
+    sparse_vectors = []
+
+    for embedding in embeddings:
+
+        sparse_vector = models.SparseVector(
+        indices=embedding.indices.tolist(),
+        values=embedding.values.tolist(),
+        )
+
+        sparse_vectors.append(sparse_vector)
+
+    return sparse_vectors

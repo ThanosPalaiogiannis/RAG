@@ -57,20 +57,3 @@ def parse_html(html: str, url: str) -> ParsedDocument:
         aside.decompose()
     blocks = extract_blocks_from_html(main)
     return ParsedDocument(url=url, blocks=blocks)
-
-if __name__ == "__main__":
-    url = "https://developers.openai.com/api/docs"
-    html = fetch_html(url)
-    doc = parse_html(html, url)
-    heading_count = sum(1 for b in doc.blocks if isinstance(b, HeadingBlock))
-    paragraph_count = sum(1 for b in doc.blocks if isinstance(b, ParagraphBlock))
-    code_count = sum(1 for b in doc.blocks if isinstance(b, CodeBlock))
-    print(f"Total blocks: {len(doc.blocks)} (headings={heading_count}, paragraphs={paragraph_count}, code={code_count})")
-
-    languages = {b.language for b in doc.blocks if isinstance(b, CodeBlock)}
-    print(f"Languages found: {languages}")
-
-    go_block = next((b for b in doc.blocks if isinstance(b, CodeBlock) and b.language == "go"), None)
-    if go_block:
-        print("--- Go code sample ---")
-        print(go_block.code)

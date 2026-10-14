@@ -1,7 +1,7 @@
 from qdrant_client import QdrantClient
 from qdrant_client import models
 from rag.embeddings.embed import EmbeddedChunk
-from rag.embeddings.sparse import embed_sparse_text
+from rag.embeddings.sparse import embed_sparse_texts
 
 def get_qdrant_client() -> QdrantClient:
     client = QdrantClient(url="http://localhost:6333")
@@ -23,12 +23,12 @@ def create_collection(client: QdrantClient) -> None:
         },
     )
 
-def embedded_chunk_to_point(embedded_chunk: EmbeddedChunk,point_id: int)-> models.PointStruct:
-    sparse_vector = embed_sparse_text(embedded_chunk.chunk.text)
+def embedded_chunk_to_point(embedded_chunk: EmbeddedChunk, sparse_vector: models.SparseVector,point_id: int,) -> models.PointStruct:
     return models.PointStruct(
         id=point_id,
-        vector={"dense": embedded_chunk.embedding,
-                "sparse": sparse_vector,
+        vector={
+            "dense": embedded_chunk.embedding,
+            "sparse": sparse_vector,
         },
         payload={
             "text": embedded_chunk.chunk.text,
@@ -39,18 +39,27 @@ def embedded_chunk_to_point(embedded_chunk: EmbeddedChunk,point_id: int)-> model
     )
 
 def embedded_chunks_to_points(embedded_chunks: list[EmbeddedChunk]) -> list[models.PointStruct]:
+    texts = [embedded_chunk.chunk.text for embedded_chunk in embedded_chunks]
+    sparse_vectors = embed_sparse_texts(texts)
     points = []
-    for point_id, embedded_chunk in enumerate(embedded_chunks):
-       point=embedded_chunk_to_point(embedded_chunk=embedded_chunk,point_id=point_id)
-       points.append(point)
+    for point_id, (embedded_chunk, sparse_vector) in enumerate(zip(embedded_chunks, sparse_vectors)):
+        point = embedded_chunk_to_point(
+            embedded_chunk=embedded_chunk,
+            sparse_vector=sparse_vector,
+            point_id=point_id,
+        )
+        points.append(point)
+
     return points
 
-def upsert_points(client: QdrantClient, points: list[models.PointStruct]) -> None:
-    client.upsert(
+def upsert_points(client: QdrantClient, points: list[models.PointStruct], batch_size: int = 500,) -> None:
+    for start in range(0, len(points), batch_size):
+        batch = points[start:start + batch_size]
+        client.upsert(
         collection_name="openai_docs",
-        points=points,
+        points=batch,
         wait=True,
-    )
+        )
 
 def search_points(client: QdrantClient,query_vector: list[float],limit: int = 5) -> list[models.ScoredPoint]:
     result = client.query_points(
@@ -75,20 +84,20 @@ def search_sparse_points(client: QdrantClient,query_vector: models.SparseVector,
     )
     return result.points
 
-def search_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,) -> list[models.ScoredPoint]:
+def search_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,prefetch_limit: int = 15,) -> list[models.ScoredPoint]:
     results = client.query_points(
         collection_name="openai_docs",
         prefetch=[
             models.Prefetch(
                 query=dense_vector,
                 using="dense",
-                limit=limit,
+                limit=prefetch_limit,
             ),
 
             models.Prefetch(
                 query=sparse_vector,
                 using="sparse",
-                limit=limit
+                limit=prefetch_limit,
             ),
         ],
         query=models.RrfQuery(
@@ -101,20 +110,20 @@ def search_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_v
 
     return results.points
 
-def search_weighted_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,) -> list[models.ScoredPoint]:
+def search_weighted_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,prefetch_limit: int = 15,) -> list[models.ScoredPoint]:
     results = client.query_points(
         collection_name="openai_docs",
         prefetch=[
             models.Prefetch(
                 query=dense_vector,
                 using="dense",
-                limit=limit,
+                limit=prefetch_limit,
             ),
 
             models.Prefetch(
                 query=sparse_vector,
                 using="sparse",
-                limit=limit
+                limit=prefetch_limit,
             ),
         ],
         query=models.RrfQuery(

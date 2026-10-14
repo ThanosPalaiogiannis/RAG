@@ -5,6 +5,7 @@ from rag.retrieval.retriever import (
     weighted_hybrid_retrieve,
     reranked_retrieve,
 )
+from qdrant_client.models import ScoredPoint
 
 DEV_CASES = [
     {
@@ -108,14 +109,128 @@ VALIDATION_CASES = [
     },
 ]
 
+LARGE_CORPUS_TEST_CASES = [
+    {
+        "query": "How do I use web search with the Responses API?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/tools-web-search",
+                "section": "Choose an integration",
+            },
+            {
+                "url_contains": "/guides/tools-web-search",
+                "section": "Responses API",
+            },
+            {
+                "url_contains": "/guides/tools-web-search",
+                "section": "Web search",
+            },
+        ],
+    },
+    {
+        "query": "How do I create embeddings in Python?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/embeddings",
+                "section": "How to get embeddings",
+                "language": "python",
+            },
+        ],
+    },
+    {
+        "query": "What does previous_response_id do in the Responses API?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/conversation-state",
+                "section": "Passing context from the previous response",
+            },
+        ],
+    },
+    {
+        "query": "How can I receive tokens while the response is still being generated?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/streaming-responses",
+            },
+        ],
+    },
+    {
+        "query": "How do I send an image to the model for analysis?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/images",
+            },
+        ],
+    },
+    {
+        "query": "How can I let the model call one of my own functions?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/function-calling",
+            },
+        ],
+    },
+    {
+        "query": "How do I keep conversation state between multiple Responses API calls?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/conversation-state",
+            },
+        ],
+    },
+    {
+        "query": "What does max_output_tokens control in the Responses API?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/reasoning",
+                "section": "Allocating space for reasoning",
+            },
+            {
+                "url_contains": "/guides/reasoning",
+                "section": "Controlling costs",
+            },
+        ],
+    },
+    {
+        "query": "What should I do when my application hits API rate limits?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/rate-limits",
+            },
+        ],
+    },
+    {
+        "query": "How do I search files that I uploaded to a vector store?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/tools-file-search",
+            },
+        ],
+    },
+    {
+        "query": "How can I make the model return JSON that follows a specific schema?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/structured-outputs",
+            },
+        ],
+    },
+    {
+        "query": "How does prompt caching reduce latency and cost for repeated prompts?",
+        "expected_targets": [
+            {
+                "url_contains": "/guides/prompt-caching",
+            },
+        ],
+    },
+]
 def evaluate_case(case: dict,retriever, k: int = 5):
     query = case["query"]
-    expected_section = case["expected_section"]
+    expected_targets = case["expected_targets"]
     results = retriever(query, limit=k)
     rank = None
     for i, result in enumerate(results, start=1):
-        section = result.payload.get("section")
-        if section == expected_section:
+        if any(matches_target(result, target) for target in expected_targets):
             rank = i
             break
     return rank
@@ -157,7 +272,10 @@ def print_evaluation_results(title: str,cases: list[dict],results: dict,retrieve
 
     for i, case in enumerate(cases):
         print(f"\nQuery: {case['query']}")
-        print(f"Expected: {case['expected_section']}")
+        print("Expected targets:")
+
+        for target in case["expected_targets"]:
+            print(f"  {target}")
 
         for name in retrievers:
             rank = results[name]["ranks"][i]
@@ -172,6 +290,27 @@ def print_evaluation_results(title: str,cases: list[dict],results: dict,retrieve
             f"MRR={result['mrr']:.2f}"
         )
 
+def matches_target(result: ScoredPoint, target: dict) -> bool:
+    payload = result.payload or {}
+    if "url_contains" in target:
+        source_url = payload.get("source_url", "")
+
+        if target["url_contains"] not in source_url:
+            return False
+    if "section" in target:
+        section = payload.get("section")
+
+        if section != target["section"]:
+            return False
+
+    if "language" in target:
+        language = payload.get("language")
+
+        if language != target["language"]:
+            return False
+    return True
+
+
 if __name__ == "__main__":
     k = 5
 
@@ -180,32 +319,19 @@ if __name__ == "__main__":
         "Sparse": sparse_retrieve,
         "Hybrid 1:1": hybrid_retrieve,
         "Hybrid 2:1": weighted_hybrid_retrieve,
-        "Dense + Reranker" : reranked_retrieve,
+        "Dense + Reranker": reranked_retrieve,
     }
 
-    dev_results = run_evaluation(
-        DEV_CASES,
+    results = run_evaluation(
+        LARGE_CORPUS_TEST_CASES,
         retrievers,
         k=k,
     )
 
-    validation_results = run_evaluation(
-        VALIDATION_CASES,
-        retrievers,
-        k=k,
-    )
     print_evaluation_results(
-    title="DEV SET",
-    cases=DEV_CASES,
-    results=dev_results,
-    retrievers=retrievers,
-    k=k,
-    )
-
-    print_evaluation_results(
-        title="VALIDATION SET",
-        cases=VALIDATION_CASES,
-        results=validation_results,
+        title="LARGE CORPUS TEST SET",
+        cases=LARGE_CORPUS_TEST_CASES,
+        results=results,
         retrievers=retrievers,
         k=k,
     )
