@@ -4,7 +4,7 @@ A Retrieval-Augmented Generation (RAG) system built in Python using the OpenAI A
 
 The project is designed as an end-to-end RAG pipeline, with emphasis on retrieval quality, source grounding, reproducible evaluation, and the engineering trade-offs behind production-oriented RAG systems.
 
-The system crawls the OpenAI API documentation, converts it into structured chunks, indexes both dense and sparse representations in Qdrant, retrieves relevant context using hybrid search, and generates answers with explicit source metadata.
+The system crawls the OpenAI API documentation, converts it into structured chunks, indexes both dense and sparse representations in Qdrant, retrieves relevant context using hybrid search, generates answers with explicit source metadata, and exposes the complete RAG pipeline through a FastAPI interface.
 
 The project is still under active development.
 
@@ -36,6 +36,10 @@ Language-Aware Context Selection
 LLM Generation
         ↓
 Structured Answer + Sources
+        ↓
+FastAPI
+        ↓
+Validated JSON Response
 ```
 
 The crawler is restricted to:
@@ -78,11 +82,18 @@ The current indexed corpus contains:
 - Structured RAG responses with source metadata
 - Source deduplication
 - Retrieval evaluation using Recall@K and MRR
+- FastAPI interface
+- API request and response validation with Pydantic
+- Query whitespace normalization and empty-query rejection
+- Application-level exception handling
+- Separate service and configuration errors
+- Server-side exception logging
 - Automated tests with pytest
+- API testing with FastAPI TestClient and pytest monkeypatch
 
 ## Retrieval
 
-The production retrieval strategy is currently **Hybrid 1:1 using Reciprocal Rank Fusion**.
+The default retrieval strategy is currently **Hybrid 1:1 using Reciprocal Rank Fusion**.
 
 Dense retrieval captures semantic similarity, while sparse BM25 retrieval is useful for exact API terminology, parameter names, and documentation-specific vocabulary.
 
@@ -95,7 +106,7 @@ Query
           ↓
       RRF fusion
           ↓
-       Top-K results
+      Top-K results
 ```
 
 ### Why hybrid retrieval?
@@ -107,13 +118,13 @@ After expanding the corpus to the full OpenAI API documentation, I evaluated sev
 Current results:
 
 ```text
-Retriever           Recall@5   MRR
-----------------------------------
-Dense                 0.75     0.57
-Sparse                0.75     0.57
-Hybrid 1:1            0.92     0.61
-Hybrid 2:1            0.92     0.60
-Dense + Reranker      0.67     0.40
+Retriever            Recall@5   MRR
+-----------------------------------
+Dense                  0.75     0.57
+Sparse                 0.75     0.57
+Hybrid 1:1             0.92     0.61
+Hybrid 2:1             0.92     0.60
+Dense + Reranker       0.67     0.40
 ```
 
 Hybrid 1:1 was selected because it achieved the highest Recall@5 and slightly better MRR without introducing an additional manually tuned weighting parameter.
@@ -164,6 +175,94 @@ Source metadata comes directly from retrieved documents rather than asking the L
 
 This keeps retrieval provenance separate from generated text.
 
+## FastAPI interface
+
+The RAG pipeline is exposed through a FastAPI application.
+
+The current endpoints are:
+
+```text
+GET  /health
+POST /ask
+GET  /docs
+```
+
+`GET /health` provides a basic application health response.
+
+`POST /ask` accepts a validated query, runs the RAG pipeline, and returns a structured answer with source metadata.
+
+Example request:
+
+```json
+{
+  "query": "How do I create embeddings in Python?"
+}
+```
+
+Example response structure:
+
+```json
+{
+  "answer": "...",
+  "sources": [
+    {
+      "url": "https://developers.openai.com/api/docs/guides/embeddings",
+      "section": "How to get embeddings",
+      "language": "python"
+    }
+  ]
+}
+```
+
+Request and response schemas are defined using Pydantic.
+
+Incoming queries are stripped of surrounding whitespace and empty or whitespace-only queries are rejected before reaching the RAG pipeline.
+
+Invalid request data returns:
+
+```text
+422 Unprocessable Entity
+```
+
+## Error handling
+
+The application uses custom exceptions to separate low-level infrastructure failures from the API layer.
+
+The main application-level exceptions are:
+
+```text
+RAGServiceError
+RAGConfigurationError
+```
+
+Selected OpenAI and Qdrant failures are translated into these higher-level exceptions.
+
+For example:
+
+```text
+OpenAI / Qdrant service failure
+        ↓
+RAGServiceError
+        ↓
+HTTP 503 Service Unavailable
+```
+
+Configuration failures such as OpenAI authentication errors are handled separately:
+
+```text
+OpenAI AuthenticationError
+        ↓
+RAGConfigurationError
+        ↓
+HTTP 500 Internal Server Error
+```
+
+This prevents infrastructure-specific exceptions from being exposed directly to API clients.
+
+Python exception chaining (`raise ... from exc`) preserves the original underlying exception for debugging.
+
+Server-side errors are recorded using `logger.exception()`, while the client receives a generic HTTP error response.
+
 ## Retrieval evaluation
 
 Retrieval changes are evaluated programmatically rather than only through manual inspection.
@@ -195,6 +294,33 @@ The evaluation set currently contains 12 queries covering:
 - conceptual documentation questions
 - deliberately difficult retrieval cases
 
+## Automated testing
+
+The project uses pytest for automated testing.
+
+The current test suite covers:
+
+- crawling
+- parsing
+- chunking
+- embedding-related logic
+- retrieval evaluation
+- FastAPI request validation
+- successful API responses
+- service failure handling
+- configuration failure handling
+
+FastAPI tests use `TestClient`, allowing the API to be tested without running Uvicorn.
+
+External RAG behavior is mocked using pytest `monkeypatch`, allowing API behavior to be tested without making real OpenAI or Qdrant requests.
+
+Current test suite:
+
+```text
+28 passed
+0 failed
+```
+
 ## Stack
 
 - Python 3.12
@@ -208,6 +334,9 @@ The evaluation set currently contains 12 queries covering:
 - BeautifulSoup
 - lxml
 - tiktoken
+- FastAPI
+- Uvicorn
+- Pydantic
 - pytest
 - uv
 
@@ -223,9 +352,19 @@ src/rag/
 ├── ingestion/
 ├── retrieval/
 ├── vector_store/
+├── api.py
+├── exceptions.py
 ├── pipeline.py
 ├── rag.py
 └── response.py
+
+tests/
+├── test_api.py
+├── test_chunk.py
+├── test_crawl.py
+├── test_embed.py
+├── test_parse.py
+└── test_retrieval_eval.py
 ```
 
 ## Running locally
@@ -262,6 +401,24 @@ This performs the full ingestion pipeline and rebuilds the Qdrant collection.
 uv run python -m rag.rag
 ```
 
+### Start the FastAPI application
+
+```bash
+uv run uvicorn rag.api:app --host 127.0.0.1 --port 8001
+```
+
+Swagger UI is available at:
+
+```text
+http://127.0.0.1:8001/docs
+```
+
+The health endpoint is available at:
+
+```text
+http://127.0.0.1:8001/health
+```
+
 ### Run retrieval evaluation
 
 ```bash
@@ -271,33 +428,38 @@ uv run python -m rag.evaluation.retrieval_eval
 ### Run tests
 
 ```bash
-uv run pytest
+uv run pytest -v
 ```
 
 Current test suite:
 
 ```text
-23 passed
+28 passed
+0 failed
 ```
 
 ## Current limitations
 
 The retrieval evaluation set is intentionally small and should be expanded before drawing broader conclusions about retrieval quality.
 
-The current system also assumes a locally available Qdrant instance and requires the documentation index to be built separately from query-time execution.
+The current system assumes a locally available Qdrant instance and requires the documentation index to be built separately from query-time execution.
+
+Latency and cost have not yet been systematically measured.
+
+The application is currently designed and tested locally and has not yet been deployed as a complete service.
 
 ## Next steps
 
 Planned work includes:
 
-- FastAPI interface
-- API request and response validation
-- configuration management
-- structured logging
-- improved error handling
-- larger retrieval evaluation set
-- latency and cost measurements
-- application containerization
-- deployment
+- Configuration management
+- Structured logging
+- Targeted retry strategy for transient failures
+- Request tracing and latency measurements
+- Basic application monitoring
+- Larger retrieval evaluation set
+- Cost measurements
+- Application containerization
+- Deployment
 
 After the implementation is complete, I also plan to review the system end-to-end and document the major architecture decisions, failure modes, and retrieval quality / latency trade-offs.
