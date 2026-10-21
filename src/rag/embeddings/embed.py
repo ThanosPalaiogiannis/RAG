@@ -1,8 +1,8 @@
 from openai import OpenAI
 from dataclasses import dataclass
 from rag.chunking.chunk import Chunk
+from rag.config import EMBEDDING_MODEL
 
-EMBEDDING_MODEL = "text-embedding-3-small"
 
 @dataclass
 class EmbeddedChunk:
@@ -48,21 +48,21 @@ def embed_chunks(chunks: list[Chunk]) -> list[EmbeddedChunk]:
         embedded_chunks.append(embedded_chunk)
     return embedded_chunks     
 
-if __name__ == "__main__":
-    chunk_1 = Chunk(
-        text="client.responses.create(...)",
-        source_url="https://example.com/docs",
-        section="Create a response",
-        language="python",
-    )
-    chunk_2 = Chunk(
-        text="The Responses API can generate model outputs from user input.",
-        source_url="https://example.com/docs",
-        section="Responses API",
-        language=None,
-    )
-    chunks  = [chunk_1,chunk_2]
-    embedded_chunks = embed_chunks(chunks)
-    print("Embedded chunks:", len(embedded_chunks))
-    print("Dimensions:", len(embedded_chunks[0].embedding))
-    print("First chunk matches:", embedded_chunks[0].chunk.text == chunk_1.text)
+# if __name__ == "__main__":
+#     chunk_1 = Chunk(
+#         text="client.responses.create(...)",
+#         source_url="https://example.com/docs",
+#         section="Create a response",
+#         language="python",
+#     )
+#     chunk_2 = Chunk(
+#         text="The Responses API can generate model outputs from user input.",
+#         source_url="https://example.com/docs",
+#         section="Responses API",
+#         language=None,
+#     )
+#     chunks  = [chunk_1,chunk_2]
+#     embedded_chunks = embed_chunks(chunks)
+#     print("Embedded chunks:", len(embedded_chunks))
+#     print("Dimensions:", len(embedded_chunks[0].embedding))
+#     print("First chunk matches:", embedded_chunks[0].chunk.text == chunk_1.text)

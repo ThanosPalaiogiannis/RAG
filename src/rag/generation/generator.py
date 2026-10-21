@@ -1,5 +1,5 @@
 from openai import OpenAI
-
+from rag.config import GENERATION_MODEL
 
 def generate_answer(query: str, context: str) -> str:
     instructions = (
@@ -16,7 +16,7 @@ def generate_answer(query: str, context: str) -> str:
     )
     client = OpenAI()
     response = client.responses.create(
-        model="gpt-5.6-luna",
+        model=GENERATION_MODEL,
         reasoning={"effort": "low"},
         instructions=instructions,
         input=input_text,

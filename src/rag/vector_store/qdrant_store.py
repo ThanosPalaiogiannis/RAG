@@ -2,14 +2,15 @@ from qdrant_client import QdrantClient
 from qdrant_client import models
 from rag.embeddings.embed import EmbeddedChunk
 from rag.embeddings.sparse import embed_sparse_texts
+from rag.config import QDRANT_URL, QDRANT_COLLECTION
 
 def get_qdrant_client() -> QdrantClient:
-    client = QdrantClient(url="http://localhost:6333")
+    client = QdrantClient(url=QDRANT_URL)
     return client
 
 def create_collection(client: QdrantClient) -> None:
     client.create_collection(
-        collection_name = "openai_docs",
+        collection_name = QDRANT_COLLECTION,
         vectors_config={
             "dense": models.VectorParams(
                 size = 1536,
@@ -56,14 +57,14 @@ def upsert_points(client: QdrantClient, points: list[models.PointStruct], batch_
     for start in range(0, len(points), batch_size):
         batch = points[start:start + batch_size]
         client.upsert(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         points=batch,
         wait=True,
         )
 
 def search_points(client: QdrantClient,query_vector: list[float],limit: int = 5) -> list[models.ScoredPoint]:
     result = client.query_points(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         query=query_vector,
         limit=limit,
         using="dense",
@@ -75,7 +76,7 @@ def search_points(client: QdrantClient,query_vector: list[float],limit: int = 5)
 
 def search_sparse_points(client: QdrantClient,query_vector: models.SparseVector,limit: int = 5) -> list[models.ScoredPoint]:
     result = client.query_points(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         query = query_vector,
         using = "sparse",
         limit = limit,
@@ -86,7 +87,7 @@ def search_sparse_points(client: QdrantClient,query_vector: models.SparseVector,
 
 def search_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,prefetch_limit: int = 15,) -> list[models.ScoredPoint]:
     results = client.query_points(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         prefetch=[
             models.Prefetch(
                 query=dense_vector,
@@ -112,7 +113,7 @@ def search_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_v
 
 def search_weighted_hybrid_points(client: QdrantClient,dense_vector: list[float],sparse_vector: models.SparseVector,limit: int = 5,prefetch_limit: int = 15,) -> list[models.ScoredPoint]:
     results = client.query_points(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         prefetch=[
             models.Prefetch(
                 query=dense_vector,
@@ -140,7 +141,7 @@ def search_weighted_hybrid_points(client: QdrantClient,dense_vector: list[float]
 
 def delete_points(client: QdrantClient,point_ids: list[int]) -> None:
     client.delete(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         points_selector=models.PointIdsList(
             points=point_ids,
         ),
@@ -148,7 +149,7 @@ def delete_points(client: QdrantClient,point_ids: list[int]) -> None:
     )
 
 def reset_collection(client: QdrantClient) -> None:
-    if client.collection_exists("openai_docs"):
-        client.delete_collection("openai_docs")
+    if client.collection_exists(QDRANT_COLLECTION):
+        client.delete_collection(QDRANT_COLLECTION)
 
     create_collection(client)

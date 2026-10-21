@@ -7,7 +7,7 @@ from rag.vector_store.qdrant_store import (
     upsert_points,
     reset_collection,
 )
-
+from rag.config import QDRANT_COLLECTION
 
 def build_chunk_corpus(start_url: str, max_pages: int | None = None,) -> list[Chunk]:
     documents = crawl(start_url, max_pages)
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     upsert_points(client, points)
 
     count = client.count(
-        collection_name="openai_docs",
+        collection_name=QDRANT_COLLECTION,
         exact=True,
     )
     print(f"Qdrant points: {count.count}")
